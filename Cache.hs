@@ -3,7 +3,7 @@
 
 -- TODO: Does Cache have any other typeclass instances?
 --       Can IO be factored out, and will factoring it out have significants benefits?
-module Cache (Cache, CacheMap, newCache, newCacheWith, lookup, createLookup) where
+module Cache (Cache, CacheMap, newCache, newCacheWith, lookup, lookupWith) where
 
 import Prelude hiding (lookup)
 import Control.Applicative ((<$>))
@@ -35,7 +35,7 @@ newCacheWith initial f = Cache f id <$> newMVar initial
 -- | Loads a value from a CacheMap. If the value is not found, the cache miss function is
 -- used to generate a new value and adds this to the cache.
 lookup :: Ord key => key -> CacheMap key val -> IO val
-lookup = createLookup M.lookup M.insert
+lookup = lookupWith M.lookup M.insert
 
 -- | Given a lookup and insert function, this will create a new lookup function specialized to @Cache@.
 -- This can be used to create new caches that don't depend on the internal cache structure.
@@ -43,15 +43,15 @@ lookup = createLookup M.lookup M.insert
 --
 -- @
 -- lookup :: Ord key => key -> Cache M.Map key val -> IO val
--- lookup = createLookup M.lookup M.insert
+-- lookup = lookupWith M.lookup M.insert
 -- @
 --
 -- This will give you a 'lookup' function that is specialized to Caches dealing with 'Data.Map.Map'.
-createLookup
+lookupWith
     :: (forall val'. key -> map key val' -> Maybe val') -- ^ The lookup function
     -> (forall val'. key -> val' -> map key val' -> map key val') -- ^ The insert function
     -> (key -> Cache map key val -> IO val) -- ^ The specialized lookup function
-createLookup lookup' insert' =
+lookupWith lookup' insert' =
     \key (Cache miss extr mvar) -> do
         dict <- takeMVar mvar
         case lookup' key dict of
